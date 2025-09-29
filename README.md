@@ -7,11 +7,31 @@ This setup closely simulates a real-world production-like environment, showcasin
 
 ---
 
+## 📚 Table of Contents
+
+1. [🧩 Project Overview](#-project-overview)
+2. [🛠️ Tech Stack](#️-tech-stack)
+3. [⚙️ Setting up VirtualBox & Vagrant](#️-setting-up-virtualbox--vagrant)
+   - [🪜 Step 1: Install Dependencies](#-step-1-install-dependencies)
+   - [🧱 Step 2: Clone the Repository](#-step-2-clone-the-kodekloud-vagrant-repository)
+   - [🚀 Step 3: Spin Up Virtual Machines:](#step-3-spin-up-virtual-machines)
+4. [☸️ Deployment with Kubeadm](#️-deployment-with-kubeadm)
+   - [🧩 Step 1: Installing Kubeadm](#-step-1-installing-kubeadm)
+   - [🧱 Step 2: Creating a Cluster with Kubeadm](#-step-2-creating-a-cluster-with-kubeadm)
+     - [a) Container Runtime Installation](#a--container-runtime-containerd-installation)
+     - [b) Cgroup Drivers Setup](#b--cgroup-drivers-setup)
+     - [c) Initializing Control Plane](#c--initializing-control-plane)
+     - [d) Configuring Kubectl](#d--configure-kubectl)
+     - [e) Deploying Pod Network (Flannel)](#e--deploy-pod-network-flannel)
+     - [f) Registering Worker Nodes](#f--registering-worker-nodes)
+     
+---
+
 ## 🧩 Project Overview
 
-In this project, I’ve automated the provisioning of a Kubernetes cluster consisting of **one Control Plane** and **two Worker Nodes** using **Vagrant** and **VirtualBox**.  
+> In this project, I’ve automated the provisioning of a Kubernetes cluster consisting of **one Control Plane** and **two Worker Nodes** using **Vagrant** and **VirtualBox**.  
 
-Since the official Kubernetes documentation can be complex sometimes, I’ve summarized all required steps into one simplified, beginner friendly guide.
+> Since the official Kubernetes documentation can be complex sometimes, I’ve summarized all required steps into one simplified, beginner friendly guide.
 
 ---
 
@@ -29,21 +49,19 @@ Since the official Kubernetes documentation can be complex sometimes, I’ve sum
 
 ## ⚙️ Setting up VirtualBox & Vagrant
 
-### Step 1: Install Dependencies
+### 🪜 Step 1: Install Dependencies
 
 Install the following tools before proceeding:
 
 - [🔗 Download VirtualBox](https://www.virtualbox.org/wiki/Downloads)
 - [🔗 Download Vagrant](https://developer.hashicorp.com/vagrant/install)
 
-
-### Step 2: Clone the KodeKloud Vagrant Repository
+### 🧱 Step 2: Clone the KodeKloud Vagrant Repository
 
 ```bash
 git clone https://github.com/kodekloudhub/certified-kubernetes-administrator-course.git
 ```
-This repo contains a Vagrantfile capable of spinning up:
-
+This repo contains a Vagrantfile capable of spinning up: \
 🧠 1 Control Plane Node (controlplane) \
 🧩 2 Worker Nodes (node01, node02)
 
@@ -51,9 +69,12 @@ Navigate to the location where Vagrantfile is present:
 ```bash
 C:\Users\vanis\certified-kubernetes-administrator-course\kubeadm-clusters\virtualbox\Vagrantfile
 ```
-Run command:
+Check VM status:
 ```bash
 vd@VanishaDeb:~/certified-kubernetes-administrator-course/kubeadm-clusters/virtualbox$ vagrant status
+```
+Output:
+```bash
 Current machine states:
 
 controlplane              not created (virtualbox)
@@ -62,8 +83,9 @@ node02                    not created (virtualbox)
 ```
 ➡️ This confirms the VMs are defined but not yet created.
 
-To spin up all three virtual machines defined in Vagrantfile: \
-Run command:
+🚀 Step 3: Spin Up Virtual Machines:
+
+To bring up all three VMs defined in the Vagrantfile:
 ```bash
 Vagrant up
 ```
@@ -259,11 +281,11 @@ replacing "port_number" with the number of your NodePort.
   http://192.168.1.27:port_number
   http://192.168.1.28:port_number
 ```
-Running VMs can be seen on Virtualbox UI as well:
+✅ Running VMs can be seen in the VirtualBox UI:
 
 <img width="1919" height="825" alt="image" src="https://github.com/user-attachments/assets/8058f45d-47a5-4028-8ac6-7605bf9d9674" />
 
-In order to login to particular VM , run the following command:
+To log in to a particular VM , run the following command:
 ```bash
 vagrant ssh $vmname
 ```
@@ -272,5 +294,130 @@ vagrant ssh $vmname
 
 ## ☸️ Deployment with Kubeadm
 
+### 🧩 Step 1: Installing Kubeadm
+> Version used: v1.31 
 
-  
+Run the following commands on all the nodes: 
+
+Download the Kubernetes signing key:
+```bash
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+```
+Add the Kubernetes apt repository:
+```bash
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+```
+Install kubelet, kubeadm, and kubectl:
+```bash
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+```
+Check for kubeadm version:
+```bash
+kubeadm version
+```
+
+### 🧱 Step 2: Creating a Cluster with Kubeadm
+a) 🐳 Container Runtime (Containerd) Installation
+Execute the following on all nodes:
+```bash
+sudo apt update
+sudo apt install -y containerd
+```  
+
+b) ⚙️ Cgroup Drivers Setup
+Cgroup driver should be the same for both kubelet and container runtime.
+
+To verify your system’s init process:
+```bash
+ps -p 1 
+```
+> Output shows systemd, which is the default in v1.22+ — no manual changes needed.
+
+If you still want to explicitly set SystemdCgroup, run:
+```bash
+sudo mkdir -p /etc/containerd
+containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
+sudo systemctl restart containerd
+```
+
+c) 🧭 Initializing Control Plane \
+Enable ip forwarding :
+```bash
+sudo sysctl -w net.ipv4.ip_forward=1 
+```
+Initialize Control Plane:
+```bash
+sudo kubeadm init --apiserver-advertise-address 192.168.18.238 --pod-network-cidr "10.244.0.0/16" --upload-certs
+```
+
+d) ⚙️ Configure Kubectl \
+Run on control plane only:
+```bash
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+Verify cluster access:
+```bash
+kubectl get nodes
+```
+Output:
+```bash
+NAME           STATUS     ROLES           AGE   VERSION
+controlplane   NotReady   control-plane   53m   v1.31.13
+```
+> Node is NotReady because networking is not yet configured!
+
+e) 🌐 Deploy Pod Network (Flannel) \
+When a node has multiple interfaces, explicitly specify kubelet IP to avoid NetworkPluginNotReady issues.
+
+Download Flannel manifest:
+```bash
+wget https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+```
+If you used the default Pod CIDR (10.244.0.0/16), no edits are needed.
+
+Run the following command to deploy kube-flannel pod network file:
+```bash
+kubectl apply -f kube-flannel.yml
+```
+If control plane remains NotReady, refer to the <b>Error and Solutions file</b> of this repository.
+
+f) 🧩 Registering Worker Nodes
+
+Join command (use from kubeadm init output):
+```bash
+kubeadm join 192.168.1.26:6443 --token {token} \
+        --discovery-token-ca-cert-hash {token key}
+```
+You get the kubeadm join command as an output right after you initialize the control plane.
+
+⚠️ Common Issues
+❌ Error while registering worker nodes to the cluster:
+```bash
+vagrant@node01:~$ sudo kubeadm join 192.168.1.26:6443 --token jwimhd.5siqtr1yae1sro5e \ --discovery-token-ca-cert-hash sha256:99dab94fa8d0a3d94b76a1a40820f2e9b6e30dd925f40a349357af027df4d591 [preflight] Running pre-flight checks error execution phase preflight: [preflight] Some fatal errors occurred: [ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1 [preflight] If you know what you are doing, you can make a check non-fatal with --ignore-preflight-errors=... To see the stack trace of this error execute with --v=5 or higher
+```
+Please refer to the <b>Error and Solutions file</b> of this Repository.
+
+
+❌ Pods Stuck in ContainerCreating / Flannel CrashLoopBackOff
+
+```bash
+vagrant@controlplane:~$ kubectl get pods -A
+NAMESPACE      NAME                                   READY   STATUS              RESTARTS         AGE
+default        web                                    0/1     ContainerCreating   0                4m34s
+kube-flannel   kube-flannel-ds-8xrxd                  1/1     Running             0                117m
+kube-flannel   kube-flannel-ds-bmvf4                  0/1     CrashLoopBackOff    21 (2m22s ago)   79m
+kube-flannel   kube-flannel-ds-mzqnj                  0/1     CrashLoopBackOff    21 (2m25s ago)   81m
+```
+Please refer to the <b>Error and Solutions file</b> of this Repository.
+
+<h3 align="center">✅ Kubernetes Cluster Setup Completed Successfully!</h3>
+> 💡 Tip: Verify your setup anytime using:
+
+```bash
+kubectl get nodes -o wide
+kubectl get pods -A
+```

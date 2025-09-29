@@ -14,7 +14,7 @@ This setup closely simulates a real-world production-like environment, showcasin
 3. [⚙️ Setting up VirtualBox & Vagrant](#️-setting-up-virtualbox--vagrant)
    - [🪜 Step 1: Install Dependencies](#-step-1-install-dependencies)
    - [🧱 Step 2: Clone the Repository](#-step-2-clone-the-kodekloud-vagrant-repository)
-   - [🚀 Step 3: Spin Up Virtual Machines:](#step-3-spin-up-virtual-machines)
+   - [🚀 Step 3: Spin Up Virtual Machines:](#-step-3-spin-up-virtual-machines)
 4. [☸️ Deployment with Kubeadm](#️-deployment-with-kubeadm)
    - [🧩 Step 1: Installing Kubeadm](#-step-1-installing-kubeadm)
    - [🧱 Step 2: Creating a Cluster with Kubeadm](#-step-2-creating-a-cluster-with-kubeadm)
@@ -83,7 +83,7 @@ node02                    not created (virtualbox)
 ```
 ➡️ This confirms the VMs are defined but not yet created.
 
-🚀 Step 3: Spin Up Virtual Machines:
+### 🚀 Step 3: Spin Up Virtual Machines:
 
 To bring up all three VMs defined in the Vagrantfile:
 ```bash

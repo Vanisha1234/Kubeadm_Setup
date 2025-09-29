@@ -415,7 +415,9 @@ kube-flannel   kube-flannel-ds-mzqnj                  0/1     CrashLoopBackOff  
 Please refer to the <b>Error and Solutions file</b> of this Repository.
 
 <h3 align="center">✅ Kubernetes Cluster Setup Completed Successfully!</h3>
+
 > 💡 Tip: Verify your setup anytime using:
+
 
 ```bash
 kubectl get nodes -o wide

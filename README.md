@@ -22,7 +22,7 @@ This setup closely simulates a real-world production-like environment, showcasin
      - [b) Cgroup Drivers Setup](#b--cgroup-drivers-setup)
      - [c) Initializing Control Plane](#c--initializing-control-plane)
      - [d) Configuring Kubectl](#d--configure-kubectl)
-     - [e) Deploying Pod Network (Flannel)](#e--deploy-pod-network-flannel)
+     - [e) Deploying Pod Network (Flannel)](#e--deploying-pod-network-flannel)
      - [f) Registering Worker Nodes](#f--registering-worker-nodes)
      
 ---

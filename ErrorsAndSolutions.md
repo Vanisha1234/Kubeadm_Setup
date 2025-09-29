@@ -1,3 +1,5 @@
+<h1 align="center">🧾 Errors & Solutions</h1>
+
 # 🛠️ Fix: Control Plane Not Ready / CoreDNS Pending After Applying Flannel CNI 
 
 If **Control Plane** stays in `NotReady` state and **CoreDNS pods remain in `Pending` state** even after applying `kube-flannel.yml`, follow this debugging and fix procedure.
@@ -84,6 +86,102 @@ sudo systemctl restart kubelet
 kubectl get nodes
 kubectl get pods -n kube-system
 ```
+---
+
+## ❌ Error While Registering Worker Node to Kubernetes Cluster
+
+When running `kubeadm join` on a node, you may encounter the following error:
+
+```bash
+vagrant@node01:~$ sudo kubeadm join 192.168.1.26:6443 --token jwimhd.5siqtr1yae1sro5e \
+        --discovery-token-ca-cert-hash sha256:99dab94fa8d0a3d94b76a1a40820f2e9b6e30dd925f40a349357af027df4d591
+
+[preflight] Running pre-flight checks
+error execution phase preflight: [preflight] Some fatal errors occurred:
+        [ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1
+
+[preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...`
+To see the stack trace of this error execute with --v=5 or higher
+```
+
+### ✅ Root Cause
+
+**IP forwarding is disabled** on the worker node. Kubernetes requires `net.ipv4.ip_forward = 1` to allow packet routing between pods and nodes.
+
+### ✅ Solution: Enable IP Forwarding
+
+```bash
+# Open sysctl configuration
+sudo nano /etc/sysctl.conf
+
+# Uncomment or add the following line:
+net.ipv4.ip_forward=1
+
+# Save and apply configuration
+sudo sysctl -p
+
+# Verify the change
+cat /proc/sys/net/ipv4/ip_forward
+# Expected Output:
+1
+```
+
+### 🔁 Retry Joining the Cluster
+
+```bash
+sudo kubeadm join 192.168.1.26:6443 --token <TOKEN> \
+    --discovery-token-ca-cert-hash <SHA256_HASH>
+```
+
+✅ The node should now register successfully!
+
+---
+
+## ❌ Flannel Pods in CrashLoopBackOff / New Pods Stuck at `ContainerCreating`
+
+If **Flannel pods keep crashing** or **other pods are stuck in `ContainerCreating` state**, it usually indicates that **network bridging is not properly enabled** on the Kubernetes nodes.
+
+### ✅ Root Cause
+
+Kernel modules and bridge network settings required by Flannel are **not enabled**, causing pod network initialization to fail.
+
+### ✅ Solution: Enable Required Networking Modules
+
+Run the following commands **on all Kubernetes nodes (Control Plane + Workers):**
+
+```bash
+# Load the br_netfilter module
+sudo modprobe br_netfilter
+
+# Enable bridge network packet filtering
+sudo sysctl -w net.bridge.bridge-nf-call-iptables=1
+sudo sysctl -w net.bridge.bridge-nf-call-ip6tables=1
+```
+
+### ✅ (Optional) Persist Settings Across Reboots
+
+Add the following lines to `/etc/sysctl.conf`:
+
+```bash
+net.bridge.bridge-nf-call-iptables=1
+net.bridge.bridge-nf-call-ip6tables=1
+```
+
+Then apply:
+
+```bash
+sudo sysctl -p
+```
+
+### 🔁 Restart Flannel
+
+```bash
+kubectl delete pod -n kube-flannel -l app=flannel - restart flannel
+```
+
+Kubernetes will recreate them automatically.
+
+✅ After this, Flannel should stabilize and pods should start running normally.
 
 ---
 

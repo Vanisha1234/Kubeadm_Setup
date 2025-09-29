@@ -1,7 +1,0 @@
-ISSUE:
-Generally the Virtual Machines running on Virtual Box via Vagrant have dynamic IPs , which changes if a VM is restarted or while re-establishing a connection
-In that case the following IP specified below while initializing control plane will change and the connection inside the cluster will break
-sudo kubeadm init --apiserver-advertise-address 192.168.18.238 --pod-network-cidr "10.244.0.0/16" --upload-certs 
-SOLUTION:
-Follow the below steps to reset the control plan and reinitialised it:
-check
